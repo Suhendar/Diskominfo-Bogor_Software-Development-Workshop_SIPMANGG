@@ -8,10 +8,10 @@ export default function Home() {
       <div className="max-w-md w-full bg-white rounded-2xl shadow-xl p-8">
         <div className="text-center mb-8">
           <h1 className="text-3xl font-bold text-gray-800 mb-2">
-            Layanan Publik Mobile
+            SIPMANG
           </h1>
           <p className="text-gray-600">
-            Sistem Layanan Publik Mobile Responsive
+            Sistem Informasi Pelayanan Kecamatan Kemang
           </p>
         </div>
 
@@ -59,8 +59,8 @@ export default function Home() {
         </div>
 
         <div className="mt-8 text-center text-sm text-gray-500">
-          <p>© 2024 Layanan Publik Mobile</p>
-          <p className="mt-1">Workshop-Friendly System</p>
+          <p>© 2025 Tim IT Kecamatan Kemang</p>
+          <p className="mt-1">Bergerak Berdampak Bermanfaat</p>
         </div>
 
       </div>
