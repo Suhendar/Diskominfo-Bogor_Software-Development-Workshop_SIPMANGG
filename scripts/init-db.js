@@ -170,6 +170,17 @@ async function initDatabase() {
           defaultValue: "PENGAJUAN_BARU",
           allowNull: false,
         },
+        // Ensure timestamps have defaults to avoid null constraint errors during alter
+        createdAt: {
+          type: DataTypes.DATE,
+          allowNull: true,
+          defaultValue: Sequelize.literal("CURRENT_TIMESTAMP"),
+        },
+        updatedAt: {
+          type: DataTypes.DATE,
+          allowNull: true,
+          defaultValue: Sequelize.literal("CURRENT_TIMESTAMP"),
+        },
       },
       {
         tableName: "submissions",
@@ -205,11 +216,58 @@ async function initDatabase() {
           type: DataTypes.JSON,
           allowNull: false,
         },
+        // Explicit createdAt to avoid NOT NULL issues on alter
+        createdAt: {
+          type: DataTypes.DATE,
+          allowNull: true,
+          defaultValue: Sequelize.literal("CURRENT_TIMESTAMP"),
+        },
       },
       {
         tableName: "notification_logs",
         timestamps: true,
         updatedAt: false, // Only track creation time
+      }
+    );
+
+    const Admin = sequelize.define(
+      "Admin",
+      {
+        id: {
+          type: DataTypes.UUID,
+          defaultValue: DataTypes.UUIDV4,
+          primaryKey: true,
+        },
+        username: {
+          type: DataTypes.STRING,
+          unique: true,
+          allowNull: false,
+        },
+        email: {
+          type: DataTypes.STRING,
+          unique: true,
+          allowNull: false,
+          validate: { isEmail: true },
+        },
+        password: {
+          type: DataTypes.STRING,
+          allowNull: false,
+          // bcrypt hash
+        },
+        createdAt: {
+          type: DataTypes.DATE,
+          allowNull: true,
+          defaultValue: Sequelize.literal("CURRENT_TIMESTAMP"),
+        },
+        updatedAt: {
+          type: DataTypes.DATE,
+          allowNull: true,
+          defaultValue: Sequelize.literal("CURRENT_TIMESTAMP"),
+        },
+      },
+      {
+        tableName: "admins",
+        timestamps: true,
       }
     );
 
@@ -226,6 +284,46 @@ async function initDatabase() {
     // Sync models (create tables if they don't exist)
     await sequelize.sync({ alter: true });
     console.log("✅ Database models synchronized.");
+
+    // Create default admin users if they don't exist
+    try {
+      const bcrypt = require("bcrypt");
+      
+      // Check if any admin exists
+      const adminCount = await Admin.count();
+      
+      if (adminCount === 0) {
+        console.log("👤 Creating default admin users...");
+        
+        // Create default admin users
+        const defaultAdmins = [
+          {
+            username: "admin",
+            password: await bcrypt.hash("admin123", 10),
+            email: "admin@diskominfo.bogorkab.go.id",
+          },
+          {
+            username: "operator",
+            password: await bcrypt.hash("operator123", 10),
+            email: "operator@diskominfo.bogorkab.go.id",
+          },
+        ];
+
+        for (const adminData of defaultAdmins) {
+          await Admin.create(adminData);
+          console.log(`✅ Created admin user: ${adminData.username}`);
+        }
+        
+        console.log("📝 Default admin credentials:");
+        console.log("   Super Admin - Username: admin, Password: admin123");
+        console.log("   Operator - Username: operator, Password: operator123");
+      } else {
+        console.log(`✅ Found ${adminCount} existing admin user(s)`);
+      }
+    } catch (error) {
+      console.log("⚠️  Could not create default admin users:", error.message);
+      console.log("💡 You may need to install bcrypt: npm install bcrypt");
+    }
 
     console.log("🎉 Database initialized successfully!");
     process.exit(0);

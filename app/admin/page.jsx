@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { Table, Select, message, Card, Row, Col } from "antd";
+import { Table, Select, message, Card, Row, Col, Input } from "antd";
 import {
   PieChart,
   Pie,
@@ -22,6 +22,9 @@ export default function AdminDashboard() {
   const [chartData, setChartData] = useState([]);
   const [updatingStatus, setUpdatingStatus] = useState({}); // Track which submission is being updated
   const [refreshing, setRefreshing] = useState(false); // Track refresh loading state
+  const [searchText, setSearchText] = useState("");
+  const [sortBy, setSortBy] = useState("created_at");
+  const [sortDir, setSortDir] = useState("DESC");
 
   const COLORS = ["#ffc107", "#1890ff", "#52c41a", "#ff4d4f"];
 
@@ -55,8 +58,19 @@ export default function AdminDashboard() {
       const forceRefresh = Date.now();
       const cacheBuster = Math.random().toString(36).substring(7);
 
+      const params = new URLSearchParams({
+        t: String(timestamp),
+        r: random,
+        force: String(forceRefresh),
+        cb: cacheBuster,
+        _: String(Date.now()),
+        search: searchText,
+        sortBy,
+        sortDir,
+      });
+
       const response = await fetch(
-        `/api/admin/submissions?t=${timestamp}&r=${random}&force=${forceRefresh}&cb=${cacheBuster}&_=${Date.now()}`,
+        `/api/admin/submissions?${params.toString()}`,
         {
           headers: {
             "Cache-Control": "no-cache, no-store, must-revalidate, max-age=0",
@@ -95,6 +109,15 @@ export default function AdminDashboard() {
   const handleRefresh = () => {
     fetchSubmissions(true);
   };
+
+  // Trigger fetch when search/sort changes (debounced for search)
+  useEffect(() => {
+    const id = setTimeout(() => {
+      fetchSubmissions();
+    }, 300);
+    return () => clearTimeout(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchText, sortBy, sortDir]);
 
   const updateChartData = (data) => {
     const statusCount = data.reduce((acc, item) => {
@@ -738,11 +761,37 @@ export default function AdminDashboard() {
 
         {/* Table */}
         <Card title="Daftar Pengajuan">
-          <div className="mb-4">
+          <div className="mb-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2">
+            <Input
+              placeholder="Cari nama, tracking, layanan, status"
+              value={searchText}
+              onChange={(e) => setSearchText(e.target.value)}
+              allowClear
+            />
+
+            <div className="flex space-x-2">
+              <Select
+                value={sortBy}
+                onChange={setSortBy}
+                style={{ width: "100%" }}
+              >
+                <Option value="created_at">Terbaru</Option>
+                <Option value="updated_at">Terupdate</Option>
+                <Option value="nama">Nama</Option>
+                <Option value="status">Status</Option>
+                <Option value="jenis_layanan">Jenis Layanan</Option>
+                <Option value="tracking_code">Kode Tracking</Option>
+              </Select>
+              <Select value={sortDir} onChange={setSortDir} style={{ width: 120 }}>
+                <Option value="DESC">Desc</Option>
+                <Option value="ASC">Asc</Option>
+              </Select>
+            </div>
+
             <Select
               value={statusFilter}
               onChange={setStatusFilter}
-              style={{ width: "100%", maxWidth: 200 }}
+              style={{ width: "100%" }}
               placeholder="Filter by status"
               disabled={loading || Object.values(updatingStatus).some(Boolean)}
               loading={loading}
@@ -753,11 +802,14 @@ export default function AdminDashboard() {
               <Option value="SELESAI">Selesai</Option>
               <Option value="DITOLAK">Ditolak</Option>
             </Select>
-            {loading && (
-              <span className="ml-2 text-xs sm:text-sm text-gray-500">
-                Memuat data...
-              </span>
-            )}
+
+            <button
+              onClick={handleRefresh}
+              disabled={refreshing || loading}
+              className="bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white px-3 sm:px-4 py-2 rounded-lg flex items-center justify-center text-sm"
+            >
+              Refresh Data
+            </button>
           </div>
 
           <div className="relative">

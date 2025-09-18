@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { Submission, initializeDatabase } from "@/lib/sequelize";
+import { Op, fn, col, where as sequelizeWhere, literal } from "sequelize";
 
 // Initialize database on first request
 let dbInitialized = false;
@@ -17,12 +18,16 @@ export async function GET(request) {
     // In a real application, you would verify admin authentication here
     // For workshop purposes, we'll skip authentication
 
-    // Parse cache-busting query parameters
+    // Parse cache-busting and search/sort query parameters
     const url = new URL(request.url);
     const queryTimestamp = url.searchParams.get("t");
     const queryRandom = url.searchParams.get("r");
     const queryForce = url.searchParams.get("force");
     const queryCacheBuster = url.searchParams.get("cb");
+    const search = (url.searchParams.get("search") || "").trim();
+    const sortBy = (url.searchParams.get("sortBy") || "created_at").trim();
+    const sortDirRaw = (url.searchParams.get("sortDir") || "DESC").trim().toUpperCase();
+    const sortDir = sortDirRaw === "ASC" ? "ASC" : "DESC";
 
     // Force fresh data dengan multiple strategies
     const timestamp = Date.now();
@@ -42,8 +47,49 @@ export async function GET(request) {
       `[${new Date().toISOString()}] Using random order: ${randomOrder}`
     );
 
+    // Determine LIKE operator based on dialect
+    const dialect = Submission.sequelize.getDialect();
+    const likeOperator = dialect === "postgres" ? Op.iLike : Op.like;
+
+    // Optional: map human-readable status terms to enum values
+    const normalized = search.toLowerCase();
+    let statusSearch = undefined;
+    if (["pengajuan baru", "baru", "PENGAJUAN_BARU".toLowerCase()].some((s) => normalized.includes(s))) {
+      statusSearch = "PENGAJUAN_BARU";
+    } else if (["diproses", "proses", "DIPROSES".toLowerCase()].some((s) => normalized.includes(s))) {
+      statusSearch = "DIPROSES";
+    } else if (["selesai", "SELESAI".toLowerCase()].some((s) => normalized.includes(s))) {
+      statusSearch = "SELESAI";
+    } else if (["ditolak", "DITOLAK".toLowerCase()].some((s) => normalized.includes(s))) {
+      statusSearch = "DITOLAK";
+    }
+
+    // Build where clause for search: apply LIKE to text columns only; for status use equality if mapped
+    const whereClause = search
+      ? {
+          [Op.or]: [
+            { tracking_code: { [likeOperator]: `%${search}%` } },
+            { nama: { [likeOperator]: `%${search}%` } },
+            { jenis_layanan: { [likeOperator]: `%${search}%` } },
+            ...(statusSearch ? [{ status: statusSearch }] : []),
+          ],
+        }
+      : undefined;
+
+    // Whitelist sortable fields
+    const sortableFields = new Set([
+      "created_at",
+      "updated_at",
+      "nama",
+      "status",
+      "jenis_layanan",
+      "tracking_code",
+    ]);
+    const orderField = sortableFields.has(sortBy) ? sortBy : "created_at";
+
     const submissions = await Submission.findAll({
-      order: [["created_at", randomOrder]], // Random order untuk force fresh query
+      where: whereClause,
+      order: [[orderField, sortDir]],
       attributes: [
         "id",
         "tracking_code",
@@ -53,9 +99,7 @@ export async function GET(request) {
         "created_at",
         "updated_at",
       ],
-      // Force fresh data
       raw: false,
-      // Add random parameter to force fresh query
       logging: console.log,
     });
 
