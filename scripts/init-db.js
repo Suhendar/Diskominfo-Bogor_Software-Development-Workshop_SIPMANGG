@@ -287,7 +287,7 @@ async function initDatabase() {
 
     // Create default admin users if they don't exist
     try {
-      const bcrypt = require("bcrypt");
+      const bcrypt = require("bcryptjs");
       
       // Check if any admin exists
       const adminCount = await Admin.count();

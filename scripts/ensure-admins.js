@@ -1,5 +1,5 @@
 const { sequelize, initializeDatabase, Admin } = require("../lib/sequelize");
-const bcrypt = require("bcrypt");
+const bcrypt = require("bcryptjs");
 
 async function run() {
   try {

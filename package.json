@@ -15,6 +15,7 @@
     "test-email": "node scripts/test-email.js"
   },
   "dependencies": {
+    "bcryptjs": "^2.4.3",
     "antd": "^5.12.8",
     "dotenv": "^16.6.1",
     "next": "14.0.4",

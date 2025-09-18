@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import bcrypt from "bcrypt";
+import bcrypt from "bcryptjs";
 import { initializeDatabase, Admin } from "@/lib/sequelize";
 
 export async function POST(request) {
